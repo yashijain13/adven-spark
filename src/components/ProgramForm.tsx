@@ -12,10 +12,17 @@ import { toast } from "@/hooks/use-toast";
 const ProgramForm = () => {
   const navigate = useNavigate();
   const [program, setProgram] = useState("");
-  const [personas, setPersonas] = useState<string[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
-  const [newPersona, setNewPersona] = useState("");
   const [newRegion, setNewRegion] = useState("");
+  const [programName, setProgramName] = useState("");
+
+  // Add new state for the new persona fields
+  const [industry, setIndustry] = useState("");
+  const [otherIndustry, setOtherIndustry] = useState("");
+  const [audienceTypes, setAudienceTypes] = useState<string[]>([]);
+  const [demographics, setDemographics] = useState<string[]>([]);
+  const [otherDemographic, setOtherDemographic] = useState("");
+  const [workExperiences, setWorkExperiences] = useState<string[]>([]);
 
   const personaOptions = [
     "Working Professionals",
@@ -29,32 +36,21 @@ const ProgramForm = () => {
   ];
 
   const regionOptions = [
-    "North America",
-    "Europe", 
-    "Asia-Pacific",
-    "Latin America",
-    "Middle East & Africa",
-    "United Kingdom",
-    "Australia & New Zealand",
-    "Southeast Asia"
+    "Ahmedabad",
+    "Bangalore", 
+    "New Delhi",
+    "Guwahati",
+    "Kolkata",
+    "Chandigarh",
+    "Mumbai",
+    "Chennai"
   ];
-
-  const addPersona = (persona: string) => {
-    if (persona && !personas.includes(persona)) {
-      setPersonas([...personas, persona]);
-      setNewPersona("");
-    }
-  };
 
   const addRegion = (region: string) => {
     if (region && !regions.includes(region)) {
-      setRegions([...regions, region]);
+      setRegions(Array.from(new Set([...regions, region])));
       setNewRegion("");
     }
-  };
-
-  const removePersona = (persona: string) => {
-    setPersonas(personas.filter(p => p !== persona));
   };
 
   const removeRegion = (region: string) => {
@@ -62,24 +58,23 @@ const ProgramForm = () => {
   };
 
   const handleNext = () => {
-    if (!program) {
+    // Validate Program Details
+    if (!programName.trim()) {
       toast({
-        title: "Program Required",
-        description: "Please select a program to continue.",
+        title: "Program Name Required",
+        description: "Please enter the program name to continue.",
         variant: "destructive",
       });
       return;
     }
-    
-    if (personas.length === 0) {
+    if (!program.trim()) {
       toast({
-        title: "Personas Required", 
-        description: "Please add at least one persona to continue.",
+        title: "Program Details Required",
+        description: "Please provide program details to continue.",
         variant: "destructive",
       });
       return;
     }
-    
     if (regions.length === 0) {
       toast({
         title: "Regions Required",
@@ -89,8 +84,53 @@ const ProgramForm = () => {
       return;
     }
 
+    // Validate Target Persona fields
+    if (audienceTypes.length === 0) {
+      toast({
+        title: "Audience Type Required",
+        description: "Please select at least one audience type.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (workExperiences.length === 0) {
+      toast({
+        title: "Work Experience Required",
+        description: "Please select at least one work experience range.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!industry) {
+      toast({
+        title: "Industry Required",
+        description: "Please select an industry.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (industry === "Others" && !otherIndustry.trim()) {
+      toast({
+        title: "Other Industry Required",
+        description: "Please specify the industry.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Pass all target persona info as state
     navigate("/news-article", { 
-      state: { program, personas, regions } 
+      state: { 
+        programName,
+        program,
+        regions,
+        targetPersona: {
+          audienceTypes,
+          demographics,
+          workExperiences,
+          industry: industry === "Others" ? otherIndustry : industry,
+        }
+      } 
     });
   };
 
@@ -98,93 +138,63 @@ const ProgramForm = () => {
     <Card className="w-full max-w-2xl shadow-soft">
       <CardHeader className="text-center space-y-2">
         <CardTitle className="text-2xl font-bold text-foreground">
-          Create Your Campaign
+          Create your ad campaign in a few simple steps
         </CardTitle>
-        <p className="text-muted-foreground">
-          Set up your education marketing campaign in three simple steps
-        </p>
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Program Selection */}
+        {/* Program Name Input */}
         <div className="space-y-3">
-          <Label htmlFor="program" className="text-sm font-medium">
-            1. Program
+          <Label htmlFor="programName" className="text-sm font-medium">
+            1. Program Name
           </Label>
           <input
             type="text"
+            id="programName"
+            name="programName"
+            value={programName}
+            onChange={(e) => {
+              // Limit to 20 words
+              const words = e.target.value.split(/\s+/).slice(0, 20);
+              setProgramName(words.join(" "));
+            }}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-education-red focus:ring focus:ring-education-red/20 sm:text-base py-3 px-4"
+            placeholder="Enter program name"
+          />
+          <div className="text-xs text-muted-foreground text-right">
+            {programName.trim() ? programName.trim().split(/\s+/).length : 0}/20 words
+          </div>
+        </div>
+
+        {/* Program Selection */}
+        <div className="space-y-3">
+          <Label htmlFor="program" className="text-sm font-medium">
+            2. Program Details
+          </Label>
+          <textarea
             id="program"
             name="program"
             value={program}
             onChange={(e) => setProgram(e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-education-red focus:ring focus:ring-education-red/20 sm:text-base py-3 px-4"
-            placeholder="Enter your program name"
+            placeholder="Provide detailed context about the program (eg. duration, format, description, content and more)"
+            rows={4}
           />
-        </div>
-
-        {/* Personas Selection */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">
-            2. Add Target Personas
-          </Label>
-          <div className="flex gap-2">
-            <Select value={newPersona} onValueChange={setNewPersona}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select persona..." />
-              </SelectTrigger>
-              <SelectContent>
-                {personaOptions
-                  .filter(option => !personas.includes(option))
-                  .map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            <Button 
-              onClick={() => addPersona(newPersona)}
-              size="sm"
-              variant="outline"
-              disabled={!newPersona || personas.includes(newPersona)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {personas.length > 0 && (
-            <div className="flex flex-wrap gap-2 p-3 bg-education-red-light rounded-md">
-              {personas.map((persona) => (
-                <Badge 
-                  key={persona} 
-                  variant="secondary" 
-                  className="bg-white border border-education-red text-education-red"
-                >
-                  {persona}
-                  <button
-                    onClick={() => removePersona(persona)}
-                    className="ml-2 hover:text-education-red-dark"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Regions Selection */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">
-            3. Add Target Regions
+            3. Target Regions
           </Label>
           <div className="flex gap-2">
-            <Select value={newRegion} onValueChange={setNewRegion}>
+            <Select value={newRegion} onValueChange={addRegion}>
               <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select region..." />
+                <SelectValue placeholder="Select 1 to 8 cities" />
               </SelectTrigger>
               <SelectContent>
                 {regionOptions
+                .sort()
                   .filter(option => !regions.includes(option))
                   .map((option) => (
                     <SelectItem key={option} value={option}>
@@ -193,14 +203,6 @@ const ProgramForm = () => {
                   ))}
               </SelectContent>
             </Select>
-            <Button 
-              onClick={() => addRegion(newRegion)}
-              size="sm"
-              variant="outline"
-              disabled={!newRegion || regions.includes(newRegion)}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
           </div>
           
           {regions.length > 0 && (
@@ -222,6 +224,190 @@ const ProgramForm = () => {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Target Personas Section */}
+        <div className="space-y-6 border-t pt-6 mt-6">
+          <h3 className="text-lg font-semibold text-foreground">Target Persona</h3>
+          
+          {/* a. Audience Type */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              a. Audience Type
+            </Label>
+            <Select
+              value=""
+              onValueChange={value => {
+                if (value && !audienceTypes.includes(value)) {
+                  setAudienceTypes([...audienceTypes, value]);
+                }
+              }}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select audience type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {personaOptions
+                  .filter(option => !audienceTypes.includes(option))
+                  .map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {audienceTypes.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-education-red-light rounded-md">
+                {audienceTypes.map((type) => (
+                  <Badge 
+                    key={type} 
+                    variant="secondary" 
+                    className="bg-white border border-education-red text-education-red"
+                  >
+                    {type}
+                    <button
+                      onClick={() => setAudienceTypes(audienceTypes.filter(t => t !== type))}
+                      className="ml-2 hover:text-education-red-dark"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* b. Demographic */}
+          <div className="space-y-2">
+            <Label htmlFor="demographic" className="text-sm font-medium">
+              b. Demographic
+            </Label>
+            <Select
+              value=""
+              onValueChange={value => {
+                if (value && !demographics.includes(value)) {
+                  setDemographics([...demographics, value]);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select demographic..." />
+              </SelectTrigger>
+              <SelectContent>
+                {["males", "females", "gender agnostic", "Others - please specify"]
+                  .filter(option => !demographics.includes(option))
+                  .map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {demographics.includes("Others - please specify") && (
+              <input
+                type="text"
+                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-education-red focus:ring focus:ring-education-red/20 sm:text-base py-2 px-3"
+                placeholder="Please specify demographic"
+                value={otherDemographic}
+                onChange={e => setOtherDemographic(e.target.value)}
+              />
+            )}
+            {demographics.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-education-red-light rounded-md">
+                {demographics.map((demo) => (
+                  <Badge 
+                    key={demo} 
+                    variant="secondary" 
+                    className="bg-white border border-education-red text-education-red"
+                  >
+                    {demo.charAt(0).toUpperCase() + demo.slice(1)}
+                    <button
+                      onClick={() => setDemographics(demographics.filter(d => d !== demo))}
+                      className="ml-2 hover:text-education-red-dark"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* c. Work Experience */}
+          <div className="space-y-2">
+            <Label htmlFor="workExperience" className="text-sm font-medium">
+              c. Work Experience (in years)
+            </Label>
+            <Select
+              value=""
+              onValueChange={value => {
+                if (value && !workExperiences.includes(value)) {
+                  setWorkExperiences([...workExperiences, value]);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select work experience..." />
+              </SelectTrigger>
+              <SelectContent>
+                {["0-5", "5-10", "10-15", "15-20"]
+                  .filter(option => !workExperiences.includes(option))
+                  .map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option.replace("-", " to ")}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {workExperiences.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-education-red-light rounded-md">
+                {workExperiences.map((exp) => (
+                  <Badge 
+                    key={exp} 
+                    variant="secondary" 
+                    className="bg-white border border-education-red text-education-red"
+                  >
+                    {exp.replace("-", " to ")}
+                    <button
+                      onClick={() => setWorkExperiences(workExperiences.filter(e => e !== exp))}
+                      className="ml-2 hover:text-education-red-dark"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* d. Industry (single select, unchanged) */}
+          <div className="space-y-2">
+            <Label htmlFor="industry" className="text-sm font-medium">
+              d. Industry
+            </Label>
+            <Select value={industry} onValueChange={setIndustry}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select industry..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BFSI">BFSI</SelectItem>
+                <SelectItem value="IT-ITES">IT-ITES</SelectItem>
+                <SelectItem value="Retail">Retail</SelectItem>
+                <SelectItem value="Hospitality">Hospitality</SelectItem>
+                <SelectItem value="Auto">Auto</SelectItem>
+                <SelectItem value="Others">Others - please specify</SelectItem>
+              </SelectContent>
+            </Select>
+            {industry === "Others" && (
+              <input
+                type="text"
+                className="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-education-red focus:ring focus:ring-education-red/20 sm:text-base py-2 px-3"
+                placeholder="Please specify industry"
+                value={otherIndustry}
+                onChange={e => setOtherIndustry(e.target.value)}
+              />
+            )}
+          </div>
         </div>
 
         <Button 

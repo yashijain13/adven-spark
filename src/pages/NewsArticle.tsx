@@ -1,55 +1,157 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, CheckCircle, ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
+
+// Helper to build a relevant query for upskilling/education
+const buildQuery = (keyword1: string, keyword2: string) => {
+  let keywords = [
+    keyword1,
+    keyword2,
+    "upskilling",
+    "working professionals",
+    "continuous education",
+    "career growth",
+    "education trends",
+    "skills development"
+  ].filter(Boolean);
+
+  return keywords.join(" ");
+};
+
+const fetchNewsArticle = async (keyword1: string, keyword2: string) => {
+  const query = buildQuery(keyword1, keyword2);
+  const r = await fetch(
+    `http://localhost:3001/api/news?q=${encodeURIComponent(query)}`
+  );
+  if (!r.ok) throw new Error('Failed to fetch news');
+  return r.json();
+};
+
+// Deep compare articles for uniqueness
+function isArticleEqual(a: any, b: any) {
+  if (!a || !b) return false;
+  return (
+    a.title === b.title &&
+    a.url === b.url &&
+    a.source === b.source &&
+    a.published_at === b.published_at
+  );
+}
+
+function dedupeArticles(arr: { pair: [string, string]; article: any }[]) {
+  const unique: { pair: [string, string]; article: any }[] = [];
+  arr.forEach(item => {
+    if (
+      item.article &&
+      !unique.some(u => isArticleEqual(u.article, item.article))
+    ) {
+      unique.push(item);
+    }
+  });
+  // Add non-article pairs (for which no article was found)
+  arr.forEach(item => {
+    if (!item.article) unique.push(item);
+  });
+  return unique;
+}
 
 const NewsArticle = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { program, personas, regions } = location.state || {};
-  
-  const [article, setArticle] = useState({
-    title: "Revolutionary Digital Learning Platform Transforms Education Sector",
-    source: "Education Technology News",
-    date: "2024-01-15",
-    content: `A groundbreaking digital learning platform has been making waves in the education sector, particularly in ${regions?.join(", ") || "various regions"}. The platform, designed for ${program || "various programs"}, has shown remarkable success in engaging ${personas?.join(", ") || "diverse personas"}.
+  const { programName, regions = [], targetPersona = {} } = location.state || {};
+  const {
+    audienceTypes = [],
+    demographics = [],
+    industry = ""
+  } = targetPersona;
 
-The innovative approach combines traditional pedagogical methods with cutting-edge technology, creating an immersive learning environment that adapts to individual student needs. Early adoption has shown a 40% increase in student engagement and a 25% improvement in learning outcomes.
+  // Generate all pairs (at most 2 keywords) from programName, region, demographic, audienceType, industry
+  const keywordsArr = [
+    programName,
+    ...regions,
+    ...demographics,
+    ...audienceTypes,
+    industry
+  ].filter(Boolean);
 
-Educational institutions across the region are now implementing this technology as part of their digital transformation initiatives, with particular success in reaching new demographics and improving accessibility for diverse learning communities.`
-  });
+  // Generate all unique pairs (order doesn't matter, no duplicates)
+  const pairs: Array<[string, string]> = [];
+  for (let i = 0; i < keywordsArr.length; i++) {
+    for (let j = i + 1; j < keywordsArr.length; j++) {
+      pairs.push([keywordsArr[i], keywordsArr[j]]);
+    }
+  }
+  if (keywordsArr.length === 1) {
+    pairs.push([keywordsArr[0], ""]);
+  }
 
-  const [isRefetching, setIsRefetching] = useState(false);
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [discarded, setDiscarded] = useState<Set<number>>(new Set());
 
-  const handleRefetch = async () => {
-    setIsRefetching(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Update with new mock article
-    setArticle({
-      title: `${program || "Educational Programs"} See Surge in Adoption Across ${regions?.[0] || "Target Markets"}`,
-      source: "Global Education Report",
-      date: "2024-01-16",
-      content: `Recent market analysis reveals unprecedented growth in ${program || "educational program"} adoption, with ${personas?.join(" and ") || "key demographics"} showing increased engagement. The trend is particularly pronounced in ${regions?.join(", ") || "regional markets"}.
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const results = await Promise.all(
+          pairs.map(async (pair) => {
+            const [k1, k2] = pair as [string, string];
+            try {
+              // Try with both keywords
+              let data = await fetchNewsArticle(k1, k2);
+              let article = data.items && data.items.length > 0 ? data.items[0] : null;
 
-Industry experts attribute this growth to innovative marketing strategies and targeted outreach programs that resonate with local communities. The success demonstrates the effectiveness of localized approaches in the education sector.
+              // If no relevant article, try again with "India" as region
+              if (!article) {
+                data = await fetchNewsArticle(k1, "India");
+                article = data.items && data.items.length > 0 ? data.items[0] : null;
+              }
 
-Market research indicates this trend will continue throughout 2024, with projections showing sustained growth in program enrollment and student satisfaction rates.`
-    });
-    setIsRefetching(false);
-  };
+              // Only accept articles that mention upskilling, education, skills, etc.
+              if (
+                article &&
+                !/upskilling|education|skill|learning|career|professional/i.test(
+                  (article.title || "") + " " + (article.description || "") + " " + (article.content || "")
+                )
+              ) {
+                article = null;
+              }
 
-  const handleApprove = () => {
+              return {
+                pair: [k1, k2] as [string, string],
+                article
+              };
+            } catch {
+              return {
+                pair: [k1, k2] as [string, string],
+                article: null
+              };
+            }
+          })
+        );
+        setArticles(dedupeArticles(results));
+      } catch (err) {
+        setError("Could not fetch news articles. Please try again.");
+      }
+      setLoading(false);
+    };
+    if (pairs.length > 0) fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programName, regions, demographics, audienceTypes, industry]);
+
+  const handleContinue = () => {
     navigate("/ad-creatives", { 
-      state: { program, personas, regions, approvedArticle: article } 
+      state: { programName, regions, targetPersona, articles } 
     });
   };
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center gap-4 mb-8">
           <Button
             variant="outline"
@@ -61,56 +163,65 @@ Market research indicates this trend will continue throughout 2024, with project
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Relevant News Article</h1>
+            <h1 className="text-3xl font-bold text-foreground">Relevant News Articles</h1>
             <p className="text-muted-foreground">
-              Based on: {program} • {personas?.join(", ")} • {regions?.join(", ")}
+              {programName} • {regions.join(", ")} • {audienceTypes.join(", ")} • {industry}
             </p>
           </div>
         </div>
 
-        <Card className="shadow-soft">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <CardTitle className="text-2xl font-bold leading-tight">
-                  {article.title}
-                </CardTitle>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>{article.source}</span>
-                  <span>•</span>
-                  <span>{article.date}</span>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="prose prose-gray max-w-none">
-              {article.content.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="mb-4 text-foreground leading-relaxed">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {loading && <div>Loading articles...</div>}
+        {error && <div className="text-red-600 mb-4">{error}</div>}
 
-        <div className="flex items-center gap-4 justify-center">
+        {!loading && !error && articles.length > 0 && articles.some(a => a.article) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {articles
+              .filter(({ article }, idx) => article && !discarded.has(idx))
+              .map(({ pair, article }, idx) => (
+                <Card className="shadow-soft h-full flex flex-col" key={idx}>
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold leading-tight line-clamp-2">
+                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {article.title}
+                      </a>
+                    </CardTitle>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-2">
+                      <span><b>Keywords:</b> {pair.filter(Boolean).join(", ")}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                      <span>{article.source}</span>
+                      <span>•</span>
+                      <span>{article.published_at ? new Date(article.published_at).toLocaleDateString() : ""}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col justify-end">
+                    <div className="prose prose-gray max-w-none">
+                      <p className="mb-2 text-foreground leading-relaxed">
+                        <a href={article.url} target="_blank" rel="noopener noreferrer" className="underline">
+                          Read full article
+                        </a>
+                      </p>
+                      <button
+                        className="mt-2 text-xs text-red-600 underline"
+                        onClick={() => setDiscarded(prev => new Set(prev).add(idx))}
+                      >
+                        Discard this article
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-4 justify-center mt-8">
           <Button
-            variant="outline"
-            onClick={handleRefetch}
-            disabled={isRefetching}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
-            {isRefetching ? 'Refetching...' : 'Refetch Article'}
-          </Button>
-          
-          <Button
-            onClick={handleApprove}
+            onClick={handleContinue}
             className="flex items-center gap-2 bg-gradient-red hover:bg-education-red-dark"
+            disabled={loading}
           >
             <CheckCircle className="h-4 w-4" />
-            Approve & Continue
+            Continue
           </Button>
         </div>
       </div>
