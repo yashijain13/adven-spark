@@ -32,7 +32,8 @@ const ProgramForm = () => {
     "Entrepreneurs",
     "Technical Specialists",
     "Creative Professionals",
-    "International Students"
+    "International Students",
+    "Organization (B2B)"
   ];
 
   const regionOptions = [

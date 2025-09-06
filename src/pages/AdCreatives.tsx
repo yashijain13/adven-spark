@@ -15,6 +15,7 @@ interface Creative {
   headline: string;
   body: string;
   cta: string;
+  images?: {image_url:string}[];
   approved: boolean;
 }
 
@@ -33,9 +34,10 @@ export async function fetchAI(prompt: string) {
   }
 
   const data = await response.json();
-  // Perplexity returns { result: { choices: [{ message: { content: ... } }] } }
+  // Perplexity returns { result: { choices: [{ message: { content: ... } }], images: [...] } }
   let content = data.result?.choices?.[0]?.message?.content || data.result;
-  return content;
+  let images = data.result?.images || [];
+  return { content, images };
 }
 
 const AdCreatives = () => {
@@ -61,42 +63,53 @@ const AdCreatives = () => {
         const newCreatives: Creative[] = [];
         for (let i = 0; i < regions.length; i++) {
           const region = regions[i];
-          // Find a relevant article for this region if available
           const articleObj = articles.find(
             (a: any) => a.article && a.article.source && a.article.source.toLowerCase().includes(region.toLowerCase())
           ) || articles[i] || {};
 
           const prompt = [
-            `Generate a LinkedIn ad creative for the following program and audience.`,
-            `Program Name: ${programName}`,
-            `Region: ${region}`,
-            `Audience Types: ${audienceTypes.join(", ") || "working professionals"}`,
-            demographics.length ? `Demographics: ${demographics.join(", ")}` : "",
-            `Industry: ${industry}`,
-            articleObj?.article?.title ? `Relevant News Headline: ${articleObj.article.title}` : "",
-            articleObj?.article?.description ? `Relevant News Description: ${articleObj.article.description}` : "",
-            `The creative should include:`,
-            `- A catchy headline (max 12 words)`,
-            `- A compelling body text (max 40 words)`,
-            `- A strong call to action (max 8 words)`,
+            `Generate a LinkedIn ad poster for a mobile device (generic mobile size).`,
+            `The poster should include:`,
+            `- A catchy, relevant headline (max 10 words).`,
+`- Be optimized for mobile-first viewing (LinkedIn feed + adaptable to Instagram Stories, Reels, TikTok, YouTube Shorts).`,
+`- Follow a clear visual hierarchy: headline → key message → CTA.  `,
+`- Use modern, vibrant, high-contrast colors that stand out on small screens.  `,
+`- Experiment with unexpected layouts, typography, or illustration styles (avoid generic stock-photo aesthetics).`,  
+`- Feature a creative, culturally/regionally relevant hook in the headline (e.g., reference the city, an upcoming festival, or a local trend). This should vary in each iteration.  `,
+`- Include concise, persuasive body text that highlights the program’s benefits (from provided program details).  `,
+`- Ensure each iteration has unique copy, images, and CTA phrasing (no repetition across creatives).  `,
+`- Maintain a friendly, professional, and approachable tone—confident but not pushy.  `,
+`- The image must be AI-generated (no stock photos), contextually tied to workplaces, employees, WFH, young professionals, or graduates. Keep it professional.  `,
+`- Adapt relevance to the target region and audience.  `,
+`- If a relevant news article is provided, weave its theme or key points into the creative.  `,
+`- Keep the total length and content appropriate for a mobile ad poster format. `,
+
+            `Here are some details about the program and target audience:`,
+            `- Program Name: ${programName}`,
+            `- Region: ${region}`,
+            `- Audience Types: ${audienceTypes.join(", ") || "working professionals"}`,
+            demographics.length ? `- Demographics: ${demographics.join(", ")}` : "",
+            `- Industry: ${industry}`,
+            articleObj?.article?.title ? `- Relevant News Headline: ${articleObj.article.title}` : "",
+            articleObj?.article?.description ? `- Relevant News Description: ${articleObj.article.description}` : "",
             `Return ONLY a valid JSON object with keys: headline, body, cta.`
           ].filter(Boolean).join(" ");
 
-          let aiResult = "";
+          let aiResult: { content: string; images: {image_url:string}[] } = { content: "", images: [] };
           try {
             aiResult = await fetchAI(prompt);
           } catch (err) {
-            aiResult = "";
+            aiResult = { content: "", images: [] };
           }
 
-          // Try to parse AI result as JSON, fallback to dummy if needed
+          // Parse content as JSON
           let parsed: { headline: string; body: string; cta: string } = {
             headline: "",
             body: "",
             cta: ""
           };
           try {
-            parsed = typeof aiResult === "string" ? JSON.parse(aiResult) : aiResult;
+            parsed = typeof aiResult.content === "string" ? JSON.parse(aiResult.content) : aiResult.content;
           } catch {
             parsed = {
               headline: `Transform Your Career with ${programName || "Our Program"}`,
@@ -111,6 +124,7 @@ const AdCreatives = () => {
             headline: parsed.headline,
             body: parsed.body,
             cta: parsed.cta,
+            images: aiResult.images || [],
             approved: false
           });
         }
@@ -226,96 +240,51 @@ const AdCreatives = () => {
                   </div>
                 </CardHeader>
                 
-                <CardContent className="space-y-4">
-                  {editingId === creative.id ? (
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor={`headline-${creative.id}`}>Headline</Label>
-                        <Input
-                          id={`headline-${creative.id}`}
-                          value={editForm.headline}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, headline: e.target.value }))}
-                          className="mt-1"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor={`body-${creative.id}`}>Body Text</Label>
-                        <Textarea
-                          id={`body-${creative.id}`}
-                          value={editForm.body}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, body: e.target.value }))}
-                          rows={4}
-                          className="mt-1 resize-none"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor={`cta-${creative.id}`}>Call to Action</Label>
-                        <Input
-                          id={`cta-${creative.id}`}
-                          value={editForm.cta}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, cta: e.target.value }))}
-                          className="mt-1"
-                        />
-                      </div>
-                      
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveEdit(creative.id)}
-                          className="flex-1"
-                        >
-                          Save Changes
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="bg-gradient-subtle border border-border rounded-lg p-4 space-y-3">
-                        <h3 className="font-bold text-lg text-foreground leading-tight">
-                          {creative.headline}
-                        </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {creative.body}
-                        </p>
-                        <Button
-                          size="sm"
-                          className="w-full bg-gradient-red hover:bg-education-red-dark"
-                        >
-                          {creative.cta}
-                        </Button>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(creative)}
-                          className="flex items-center gap-2 flex-1"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApprove(creative.id)}
-                          disabled={creative.approved}
-                          className="flex items-center gap-2 flex-1 bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircle className="h-3 w-3" />
-                          {creative.approved ? "Approved" : "Approve"}
-                        </Button>
-                      </div>
-                    </div>
+                <CardContent className="space-y-4 flex-1 flex flex-col justify-end">
+                  {creative.images && creative.images.length > 0 && (
+                    <img
+                      src={creative.images[0].image_url}
+                      alt="Ad Poster"
+                      className="w-full h-48 object-cover rounded mb-3"
+                      style={{ objectPosition: "center" }}
+                    />
                   )}
+                  <div className="bg-gradient-subtle border border-border rounded-lg p-4 space-y-3 flex-1 flex flex-col justify-between">
+                    <h3 className="font-bold text-lg text-foreground leading-tight">
+                      {creative.headline}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {creative.body}
+                    </p>
+                    <Button
+                      size="sm"
+                      className="w-full bg-gradient-red hover:bg-education-red-dark truncate"
+                      style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                      title={creative.cta}
+                    >
+                      {creative.cta}
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEdit(creative)}
+                      className="flex items-center gap-2 flex-1"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(creative.id)}
+                      disabled={creative.approved}
+                      className="flex items-center gap-2 flex-1 bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="h-3 w-3" />
+                      {creative.approved ? "Approved" : "Approve"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

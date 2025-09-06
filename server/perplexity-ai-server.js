@@ -13,7 +13,7 @@ const url = 'https://api.perplexity.ai/chat/completions';
 const options = {
   method: 'POST',
   headers: {Authorization: 'Bearer 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', 'Content-Type': 'application/json'},
-  body: `{"model":"sonar","messages":[{"role":"system","content":"${context}"},{"role":"user","content":"${prompt}"}]}`
+  body: `{"model":"sonar","return_images":true,"messages":[{"role":"system","content":"${context}"},{"role":"user","content":"${prompt}"}]}`
 };
 
 try {

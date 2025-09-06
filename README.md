@@ -23,16 +23,7 @@ The only requirement is having Node.js & npm installed - [install with nvm](http
 Follow these steps:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
@@ -71,3 +62,47 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+# Adven Spark
+
+## Running the Backend Servers
+
+### 1. News Server
+
+The news server fetches relevant news articles for your application.
+
+**Install dependencies:**
+```sh
+npm install express cors node-fetch
+```
+
+**Start the news server:**
+```sh
+node news-server.js
+```
+The news server will run on [http://localhost:4001](http://localhost:4001).
+
+---
+
+### 2. Perplexity AI Server
+
+The Perplexity AI server connects your app to the Perplexity API for AI-generated content.
+
+**Install dependencies:**
+```sh
+npm install express cors axios
+```
+
+**Start the Perplexity AI server:**
+```sh
+node perplexity-ai-server.js
+```
+The AI server will run on [http://localhost:3002](http://localhost:3002).
+
+---
+
+## Notes
+
+- Make sure both servers are running before using the frontend.
+- Update API URLs in your frontend if you change the ports.
+- For development, you may want to run both servers
