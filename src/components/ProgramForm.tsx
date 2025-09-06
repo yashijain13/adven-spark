@@ -17,17 +17,6 @@ const ProgramForm = () => {
   const [newPersona, setNewPersona] = useState("");
   const [newRegion, setNewRegion] = useState("");
 
-  const programOptions = [
-    "MBA Programs",
-    "Data Science Bootcamp", 
-    "Digital Marketing Certificate",
-    "Software Engineering Course",
-    "Executive Leadership Program",
-    "AI & Machine Learning Track",
-    "UX/UI Design Program",
-    "Project Management Certification"
-  ];
-
   const personaOptions = [
     "Working Professionals",
     "Recent Graduates", 
@@ -120,20 +109,17 @@ const ProgramForm = () => {
         {/* Program Selection */}
         <div className="space-y-3">
           <Label htmlFor="program" className="text-sm font-medium">
-            1. Select Program
+            1. Program
           </Label>
-          <Select value={program} onValueChange={setProgram}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose an education program..." />
-            </SelectTrigger>
-            <SelectContent>
-              {programOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <input
+            type="text"
+            id="program"
+            name="program"
+            value={program}
+            onChange={(e) => setProgram(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-education-red focus:ring focus:ring-education-red/20 sm:text-base py-3 px-4"
+            placeholder="Enter your program name"
+          />
         </div>
 
         {/* Personas Selection */}
