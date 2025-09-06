@@ -57,6 +57,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "education-red": {
+          DEFAULT: "hsl(var(--education-red))",
+          light: "hsl(var(--education-red-light))",
+          dark: "hsl(var(--education-red-dark))",
+        },
+      },
+      boxShadow: {
+        "soft": "var(--soft-shadow)",
+        "gentle": "var(--gentle-shadow)",
+      },
+      backgroundImage: {
+        "gradient-subtle": "var(--gradient-subtle)",
+        "gradient-red": "var(--gradient-red)",
+      },
+      transitionTimingFunction: {
+        "smooth": "var(--transition-smooth)",
       },
       borderRadius: {
         lg: "var(--radius)",
